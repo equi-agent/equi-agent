@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omni Rebalancer App</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='13' fill='%23d6aa50'/%3E%3Cpath d='M14 7.5 19.6 14 14 20.5 8.4 14z' fill='none' stroke='%233a2a0b' stroke-width='1.8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap">
+<style>
+  :root {
+    --bg: #050505; --panel: #0b0b0b; --panel-2: #080808; --line: #1a1a1a; --line-2: #242424;
+    --text: #f4f4f4; --body: #c9c9c9; --muted: #7a7a7a; --accent: #7b70f0;
+    --gold: #d6aa50; --gold-soft: #e9c77b; --green: #3ecf8e; --green-soft: #8fe3b8; --blue: #7fb6ff; --red: #ff7a7a;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); }
+  body { font-family: "Satoshi", "Inter", system-ui, -apple-system, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  button, input { font: inherit; color: inherit; }
+  code, .mono { font-family: var(--mono); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+  /* top bar */
+  .bar { position: sticky; top: 0; z-index: 10; background: rgba(5,5,5,.82); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+  .bar .in { max-width: 1248px; margin: 0 auto; padding: 0 24px; height: 64px; display: flex; align-items: center; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15.5px; color: var(--text); text-decoration: none; white-space: nowrap; }
+  .brand svg { width: 26px; height: 26px; }
+  .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+  .tab { border: 0; background: transparent; padding: 7px 14px; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--muted); cursor: pointer; }
+  .tab[aria-selected="true"] { background: #171717; color: var(--text); }
+  .status { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .chip { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--body); white-space: nowrap; }
+  .chip i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--muted); }
+  .chip.ok i { background: var(--green); } .chip.demo { color: var(--gold-soft); border-color: rgba(214,170,80,.35); background: rgba(214,170,80,.08); }
+  .chip.err i { background: var(--red); }
+
+  main { max-width: 1248px; margin: 0 auto; padding: 28px 24px 64px; }
+  .view[hidden] { display: none; }
+  h2 { font-size: 15px; font-weight: 700; }
+  .sub { font-size: 13px; color: var(--muted); }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-2); background: #111; padding: 10px 16px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .btn:hover:not(:disabled) { background: #161616; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  [hidden] { display: none !important; }
+  .btn-gold { border: 0; background: linear-gradient(180deg, #f1d48d, #c99a45); color: #1a1205; }
+  .btn-gold:hover:not(:disabled) { background: linear-gradient(180deg, #f5dc9d, #d0a24e); }
+  .btn-danger { border-color: rgba(255,122,122,.4); background: rgba(255,122,122,.08); color: #ffb3b3; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+
+  /* summary */
+  .summary { display: grid; grid-template-columns: 1.1fr repeat(3, 1fr); gap: 12px; }
+  .stat { padding: 20px; }
+  .stat .label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+  .stat .value { margin-top: 10px; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat .note { margin-top: 6px; font-size: 13px; color: var(--body); }
+  .stat .bar-row { margin-top: 14px; }
+  .meter { position: relative; height: 8px; border-radius: 4px; background: #161616; }
+  .meter i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, #8a6420, #e9c77b); transition: width .5s cubic-bezier(.2,.7,.2,1); }
+  .meter b { position: absolute; top: -5px; width: 2px; height: 18px; background: #f4f4f4; border-radius: 1px; transition: left .5s cubic-bezier(.2,.7,.2,1); }
+  .drift-up { color: #f0b35a; } .drift-down { color: var(--blue); } .drift-ok { color: var(--green-soft); }
+  .verdict { margin-top: 12px; display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-radius: 12px; font-size: 14px; border: 1px solid var(--line); background: var(--panel); }
+  .verdict.need { border-color: rgba(240,179,90,.35); background: rgba(240,179,90,.06); }
+  .verdict.ok { border-color: rgba(62,207,142,.3); background: rgba(62,207,142,.05); }
+  .verdict .grow { flex: 1; }
+
+  .grid2 { margin-top: 16px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 12px 20px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  thead th { font-size: 11.5px; font-weight: 700; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+  td { color: var(--body); font-variant-numeric: tabular-nums; }
+  td.num, th.num { text-align: right; }
+  .asset { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 700; }
+  .asset img, .asset .ph { width: 22px; height: 22px; border-radius: 50%; flex: none; }
+  .asset .ph { display: grid; place-items: center; background: #1a1a1a; font-size: 10px; color: var(--gold-soft); }
+  .scroll { overflow-x: auto; }
+  .tag { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--body); }
+  .tag.equities { color: #f0c987; border-color: rgba(214,170,80,.3); }
+  .tag.crypto { color: #b7adff; border-color: rgba(123,112,240,.35); }
+  .tag.cash { color: var(--green-soft); border-color: rgba(62,207,142,.3); }
+  .warn { padding: 12px 20px; font-size: 13px; color: #f0b35a; border-top: 1px solid var(--line); }
+
+  /* targets form */
+  .form { padding: 18px 20px 20px; display: grid; gap: 14px; }
+  .field { display: grid; grid-template-columns: 1fr 96px; align-items: center; gap: 12px; }
+  .field label { font-size: 14px; font-weight: 700; }
+  .field small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .field input { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2); text-align: right; font-variant-numeric: tabular-nums; }
+  .sum { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); padding-top: 4px; }
+  .sum b.bad { color: var(--red); } .sum b.good { color: var(--green-soft); }
+  .msg { font-size: 13px; min-height: 18px; }
+  .msg.err { color: var(--red); } .msg.ok { color: var(--green-soft); }
+
+  /* plan */
+  .plan { margin-top: 16px; }
+  .plan-empty { padding: 28px 20px; font-size: 14px; color: var(--muted); }
+  .mode { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .mode.alpaca { color: var(--gold-soft); background: rgba(214,170,80,.12); border: 1px solid rgba(214,170,80,.3); }
+  .mode.wallet-sign { color: #b7adff; background: rgba(123,112,240,.1); border: 1px solid rgba(123,112,240,.3); }
+  .mode.manual { color: var(--body); background: #141414; border: 1px solid var(--line-2); }
+  td.detail { white-space: normal; min-width: 260px; color: var(--text); }
+  td.detail small { display: block; margin-top: 3px; font-size: 12px; color: var(--muted); }
+  .blocked { color: var(--red); }
+  .notes { padding: 14px 20px; border-top: 1px solid var(--line); display: grid; gap: 6px; font-size: 13px; color: var(--body); }
+  .exec { padding: 18px 20px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: rgba(255,122,122,.025); }
+  .exec p { flex: 1 1 280px; font-size: 13.5px; color: var(--body); }
+  .exec input { width: 150px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2); font-family: var(--mono); letter-spacing: .08em; }
+  .timer { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .result { padding: 16px 20px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--body); white-space: pre-wrap; }
+
+  /* terminal */
+  .term { background: #060606; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; height: calc(100vh - 64px - 28px - 64px); min-height: 420px; }
+  .term-head { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .dots { display: flex; gap: 6px; } .dots i { width: 10px; height: 10px; border-radius: 50%; background: #262626; }
+  .term-out { flex: 1; overflow-y: auto; padding: 18px 20px; font-family: var(--mono); font-size: 13.5px; line-height: 1.65; color: var(--body); white-space: pre-wrap; word-break: break-word; }
+  .term-out .cmd { color: var(--text); } .term-out .cmd::before { content: "omni › "; color: var(--gold); }
+  .term-out .err { color: var(--red); } .term-out .ok { color: var(--green-soft); } .term-out .dim { color: var(--muted); } .term-out .hl { color: var(--gold-soft); }
+  .term-in { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 14px; }
+  .term-in span { color: var(--gold); white-space: nowrap; }
+  .term-in input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font-family: var(--mono); font-size: 14px; color: var(--text); }
+  .quick { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 20px 14px; }
+  .quick button { font-family: var(--mono); font-size: 12.5px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: #0e0e0e; color: var(--body); cursor: pointer; }
+  .quick button:hover { color: var(--text); background: #151515; }
+
+  /* settings */
+  .golive { margin-bottom: 12px; display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(214,170,80,.35); background: rgba(214,170,80,.06); font-size: 14px; flex-wrap: wrap; }
+  .golive[hidden] { display: none; }
+  .golive .grow { flex: 1 1 320px; color: var(--body); } .golive b { color: var(--text); }
+  .set-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .mode-card { grid-column: 1 / -1; }
+  .lbl { font-size: 14px; font-weight: 700; } .lbl small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 2px; }
+  textarea, .form > input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2); font-family: var(--mono); font-size: 13px; color: var(--text); resize: vertical; }
+  .safe { font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+  .safe code { font-size: 12px; color: var(--gold-soft); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mode-opt { text-align: left; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--panel-2); cursor: pointer; }
+  .mode-opt b { display: block; font-size: 15px; } .mode-opt small { display: block; margin-top: 4px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+  .mode-opt[aria-checked="true"] { border-color: rgba(214,170,80,.55); background: rgba(214,170,80,.07); }
+  .mode-opt[aria-checked="true"] b::after { content: "  ●"; color: var(--gold); font-size: 11px; vertical-align: 2px; }
+  .checklist { list-style: none; display: grid; gap: 6px; font-size: 13.5px; color: var(--body); }
+  .checklist li::before { content: "○  "; color: var(--muted); } .checklist li.done::before { content: "✓  "; color: var(--green); }
+  @media (max-width: 900px) { .set-grid, .mode-switch { grid-template-columns: 1fr; } }
+
+  /* offline / token */
+  .offline { max-width: 640px; margin: 80px auto; padding: 32px; text-align: left; }
+  .offline h1 { font-size: 26px; font-weight: 700; }
+  .offline p { margin-top: 12px; font-size: 15px; line-height: 1.6; color: var(--body); }
+  .offline pre { margin-top: 16px; padding: 14px 16px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line); font-family: var(--mono); font-size: 13.5px; color: var(--text); overflow-x: auto; }
+  .offline .row { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .offline input { flex: 1; min-width: 200px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel-2); font-family: var(--mono); }
+  .skeleton { color: transparent !important; background: linear-gradient(90deg, #121212, #1a1a1a, #121212); background-size: 200% 100%; animation: sk 1.2s linear infinite; border-radius: 6px; }
+  @keyframes sk { to { background-position: -200% 0; } }
+
+  @media (max-width: 1000px) { .summary { grid-template-columns: 1fr 1fr; } .grid2 { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .bar .in { padding: 0 16px; gap: 12px; } .brand span { display: none; } .status .chip:not(.demo) { display: none; }
+    main { padding: 20px 16px 48px; } .summary { grid-template-columns: 1fr; } th, td { padding: 10px 14px; }
+    .term { height: calc(100vh - 64px - 20px - 32px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .meter i, .meter b { transition: none; } .skeleton { animation: none; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="in">
+    <a class="brand" href="#dashboard" aria-label="Omni Rebalancer app">
+      <svg viewBox="0 0 28 28" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6dc96"/><stop offset=".55" stop-color="#d6aa50"/><stop offset="1" stop-color="#8a6420"/></linearGradient></defs><circle cx="14" cy="14" r="13" fill="url(#g)"/><circle cx="14" cy="14" r="9.6" fill="none" stroke="#5c4212" stroke-opacity=".55" stroke-width="1.2"/><path d="M14 7.5 19.6 14 14 20.5 8.4 14z" fill="none" stroke="#3a2a0b" stroke-width="1.8" stroke-linejoin="round"/><path d="M8.4 14h11.2" stroke="#3a2a0b" stroke-width="1.4"/></svg>
+      <span>Omni Rebalancer</span>
+    </a>
+    <div class="tabs" role="tablist" aria-label="View">
+      <button class="tab" role="tab" id="tab-dashboard" aria-controls="view-dashboard" aria-selected="true">Dashboard</button>
+      <button class="tab" role="tab" id="tab-terminal" aria-controls="view-terminal" aria-selected="false">Terminal</button>
+      <button class="tab" role="tab" id="tab-settings" aria-controls="view-settings" aria-selected="false">Settings</button>
+    </div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+</header>
+
+<main>
+  <section class="view" id="view-offline" hidden>
+    <div class="card offline">
+      <h1 id="off-title">The engine is not running</h1>
+      <p id="off-text">This app talks to the omni-rebalancer engine on your computer. Start it, then reload this page.</p>
+      <pre id="off-cmd">npx -y omni-rebalancer-mcp web</pre>
+      <form class="row" id="off-token" hidden>
+        <input id="token-input" type="password" placeholder="Access token" autocomplete="off" aria-label="Access token">
+        <button class="btn btn-gold" id="token-save" type="submit">Connect</button>
+      </form>
+      <div class="row"><button class="btn" id="retry">Try again</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
+    <div class="golive" id="golive" hidden>
+      <span class="grow"><b>You are looking at demo data.</b> Connect your public wallet addresses and Alpaca paper keys to see your real portfolio.</span>
+      <button class="btn btn-gold" id="golive-btn">Set up live mode</button>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="verdict" id="verdict"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="card-head"><div><h2>Holdings</h2><p class="sub" id="holdings-sub">Every account, priced in USD</p></div><button class="btn" id="refresh">Refresh</button></div>
+        <div class="scroll"><table><thead><tr><th scope="col">Asset</th><th scope="col">Venue</th><th scope="col">Bucket</th><th scope="col" class="num">Amount</th><th scope="col" class="num">Value</th></tr></thead><tbody id="holdings"></tbody></table></div>
+        <div id="warnings"></div>
+      </div>
+
+      <form class="card" id="targets-form" novalidate>
+        <div class="card-head"><div><h2>Target allocation</h2><p class="sub">Saved to your config file</p></div></div>
+        <div class="form">
+          <div class="field"><label for="t-equities">Equities <small>US stocks on Alpaca</small></label><input id="t-equities" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
+          <div class="field"><label for="t-crypto">Crypto <small>SOL, ETH and tokens</small></label><input id="t-crypto" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
+          <div class="field"><label for="t-cash">Cash <small>USD and stablecoins</small></label><input id="t-cash" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
+          <div class="field"><label for="t-tol">Tolerance <small>Points of drift before acting</small></label><input id="t-tol" type="number" min="0.5" max="50" step="0.5" inputmode="decimal"></div>
+          <div class="sum"><span>Total</span><b id="t-sum">–</b></div>
+          <button class="btn btn-gold" type="submit" id="t-save">Save targets</button>
+          <p class="msg" id="t-msg" role="status"></p>
+        </div>
+      </form>
+    </div>
+
+    <div class="card plan">
+      <div class="card-head">
+        <div><h2>Rebalance plan</h2><p class="sub" id="plan-sub">Nothing runs until you type EXECUTE</p></div>
+        <button class="btn btn-gold" id="plan-btn">Plan rebalance</button>
+      </div>
+      <div id="plan"><p class="plan-empty">Build a plan to see the trades that bring every bucket back to target.</p></div>
+    </div>
+  </section>
+
+
+  <section class="view" id="view-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+    <div class="set-grid">
+      <div class="card">
+        <div class="card-head"><div><h2>1 · Wallets</h2><p class="sub">Public addresses only, one per line. Read-only: nothing is ever signed here.</p></div></div>
+        <form class="form" id="wallets-form" novalidate>
+          <label class="lbl" for="w-sol">Solana <small>SOL plus every priced SPL / Token-2022 token</small></label>
+          <textarea id="w-sol" rows="3" spellcheck="false" autocomplete="off" placeholder="e.g. 7xKX…vT2q"></textarea>
+          <label class="lbl" for="w-evm">EVM <small id="evm-chains">Read on Ethereum, Base and Arbitrum</small></label>
+          <textarea id="w-evm" rows="3" spellcheck="false" autocomplete="off" placeholder="0x…"></textarea>
+          <p class="safe">Never paste a private key or seed phrase. Anything that looks like one is refused.</p>
+          <button class="btn btn-gold" type="submit">Save wallets</button>
+          <p class="msg" id="w-msg" role="status"></p>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div><h2>2 · Alpaca paper keys</h2><p class="sub">Optional. Adds your US stocks. Paper trading only, simulated money.</p></div><span class="chip" id="alp-chip"><i></i>Not set</span></div>
+        <form class="form" id="alpaca-form" novalidate>
+          <label class="lbl" for="a-id">API Key ID</label>
+          <input id="a-id" autocomplete="off" spellcheck="false" placeholder="PK…">
+          <label class="lbl" for="a-secret">Secret key</label>
+          <input id="a-secret" type="password" autocomplete="new-password" spellcheck="false">
+          <p class="safe">Create them at app.alpaca.markets under <b>Paper trading → API keys</b>. They are tested against the paper API, then saved to <code id="env-path">~/.omni-rebalancer/.env</code> (owner-only). The secret is never sent back to the browser.</p>
+          <div class="btn-row"><button class="btn btn-gold" type="submit" id="a-save">Test and save</button><button class="btn" type="button" id="a-clear" hidden>Remove keys</button></div>
+          <p class="msg" id="a-msg" role="status"></p>
+        </form>
+      </div>
+
+      <div class="card mode-card">
+        <div class="card-head"><div><h2>3 · Mode</h2><p class="sub" id="cfg-path">Saved to ~/.omni-rebalancer/config.json</p></div></div>
+        <div class="form">
+          <div class="mode-switch" role="radiogroup" aria-label="Data mode">
+            <button class="mode-opt" role="radio" id="m-demo" aria-checked="true"><b>Demo</b><small>Sample $14,000 portfolio. Orders are simulated.</small></button>
+            <button class="mode-opt" role="radio" id="m-live" aria-checked="false"><b>Live</b><small>Your wallets and Alpaca paper account. Orders go to Alpaca paper.</small></button>
+          </div>
+          <p class="msg" id="m-msg" role="status"></p>
+          <ul class="checklist" id="checklist"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="view-terminal" role="tabpanel" aria-labelledby="tab-terminal" hidden>
+    <div class="term">
+      <div class="term-head"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>omni-rebalancer terminal · type <b class="mono">help</b></span></div>
+      <div class="term-out" id="term-out" role="log" aria-live="polite"></div>
+      <div class="quick" aria-label="Quick commands">
+        <button data-cmd="portfolio">portfolio</button><button data-cmd="drift">drift</button><button data-cmd="targets">targets</button><button data-cmd="plan">plan</button><button data-cmd="help">help</button><button data-cmd="clear">clear</button>
+      </div>
+      <form class="term-in" id="term-form"><span aria-hidden="true">omni ›</span><input id="term-input" autocomplete="off" spellcheck="false" aria-label="Command"></form>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  // ---------- API ----------
+  const store = { get(k) { try { return sessionStorage.getItem(k); } catch { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch {} } };
+  let token = store.get("omni-token") || "";
+  async function call(method, path, body) {
+    const headers = { "X-Rebalancer": "1" };
+    if (body !== undefined) headers["content-type"] = "application/json";
+    if (token) headers.authorization = `Bearer ${token}`;
+    let res;
+    try {
+      res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    } catch {
+      throw Object.assign(new Error("The engine is not reachable."), { offline: true });
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { status: res.status });
+    return data;
+  }
+
+  // ---------- helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const usd = (n) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const usd0 = (n) => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
+  const pct = (n) => `${Number(n).toFixed(1)}%`;
+  const pts = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(1)}`;
+  const amt = (n) => Number(n).toLocaleString("en-US", { maximumFractionDigits: 6 });
+  const LOGOS = { SOL: "solana", ETH: "ethereum", USDC: "usdc", USDT: "usdt", PYUSD: "pyusd", DAI: "dai" };
+  const VENUE = { alpaca: "Alpaca paper", solana: "Solana", ethereum: "Ethereum", base: "Base", arbitrum: "Arbitrum" };
+  const MODE = { alpaca: "Auto · Alpaca paper", "wallet-sign": "You sign in wallet", manual: "Manual step" };
+  const assetCell = (sym) => LOGOS[sym]
+    ? `<span class="asset"><img src="assets/chains/${LOGOS[sym]}.svg" alt="">${esc(sym)}</span>`
+    : `<span class="asset"><span class="ph" aria-hidden="true">${esc(sym.slice(0, 3))}</span>${esc(sym)}</span>`;
+
+  let state = { status: null, portfolio: null, plan: null, expiresAt: 0 };
+
+  // ---------- views ----------
+  function show(view) {
+    for (const v of ["offline", "dashboard", "terminal", "settings"]) $(`view-${v}`).hidden = v !== view;
+    for (const t of ["dashboard", "terminal", "settings"]) $(`tab-${t}`).setAttribute("aria-selected", String(t === view));
+    if (view === "settings") loadSettings().catch(() => {});
+    if (view === "terminal") setTimeout(() => $("term-input").focus(), 0);
+  }
+  const route = () => ({ "#terminal": "terminal", "#settings": "settings" }[location.hash] || "dashboard");
+  $("tab-dashboard").onclick = () => { history.replaceState(null, "", "#dashboard"); show("dashboard"); };
+  $("tab-terminal").onclick = () => { history.replaceState(null, "", "#terminal"); show("terminal"); };
+  $("tab-settings").onclick = () => { history.replaceState(null, "", "#settings"); show("settings"); };
+  $("golive-btn").onclick = () => $("tab-settings").click();
+  addEventListener("hashchange", () => state.status && show(route()));
+
+  function offline(err) {
+    const needToken = err.status === 401;
+    $("off-title").textContent = needToken ? "This engine needs an access token" : "The engine is not running";
+    $("off-text").textContent = needToken
+      ? "It was started on a network address, so every request needs the REBALANCER_WEB_TOKEN value."
+      : "This app talks to the omni-rebalancer engine on your computer. Start it, then try again.";
+    $("off-cmd").hidden = needToken;
+    $("off-token").hidden = !needToken;
+    $("status").innerHTML = `<span class="chip err"><i></i>Offline</span>`;
+    show("offline");
+  }
+  $("retry").onclick = () => boot();
+  $("off-token").onsubmit = (e) => { e.preventDefault(); token = $("token-input").value.trim(); store.set("omni-token", token); boot(); };
+
+  function renderStatus(s) {
+    $("status").innerHTML =
+      (s.demo ? `<span class="chip demo">DEMO · sample portfolio</span>` : `<span class="chip ok"><i></i>Live accounts</span>`) +
+      `<span class="chip ${s.alpaca ? "ok" : ""}"><i></i>Alpaca paper ${s.alpaca ? "connected" : "not set"}</span>` +
+      `<span class="chip">Today ${usd0(s.spentToday)} / ${usd0(s.limits.maxDailyUsd)}</span>`;
+    $("golive").hidden = !s.demo;
+    $("t-equities").value = s.targets.equities; $("t-crypto").value = s.targets.crypto; $("t-cash").value = s.targets.cash; $("t-tol").value = s.tolerancePct;
+    sumTargets();
+  }
+
+  function renderPortfolio(p) {
+    const bucketNames = { equities: "Equities", crypto: "Crypto", cash: "Cash" };
+    $("summary").innerHTML =
+      `<div class="card stat"><p class="label">Total value</p><p class="value">${usd0(p.totalUsd)}</p><p class="note">${p.holdings.length} holdings · ${p.demo ? "demo data" : "live data"}</p></div>` +
+      p.drift.map((d) => {
+        const off = Math.abs(d.driftPts) > p.tolerancePct;
+        const cls = !off ? "drift-ok" : d.driftPts > 0 ? "drift-up" : "drift-down";
+        return `<div class="card stat"><p class="label">${bucketNames[d.bucket]}</p><p class="value">${pct(d.currentPct)}</p>
+          <p class="note">${usd0(d.currentUsd)} · target ${d.targetPct}% · <b class="${cls}">${pts(d.driftPts)} pts</b></p>
+          <div class="bar-row"><div class="meter" role="img" aria-label="${bucketNames[d.bucket]} ${pct(d.currentPct)} of target ${d.targetPct}%"><i style="width:${Math.min(d.currentPct, 100)}%"></i><b style="left:${Math.min(d.targetPct, 100)}%"></b></div></div></div>`;
+      }).join("");
+    const v = $("verdict");
+    v.className = `verdict ${p.needsRebalance ? "need" : "ok"}`;
+    v.innerHTML = p.needsRebalance
+      ? `<span class="grow">Largest drift is <b>${p.maxDrift.toFixed(1)} pts</b>, past your ±${p.tolerancePct} pt tolerance. A rebalance is needed.</span><button class="btn btn-gold" id="verdict-plan">Plan rebalance</button>`
+      : `<span class="grow">Every bucket is within ±${p.tolerancePct} pts of target. Nothing to do.</span>`;
+    if ($("verdict-plan")) $("verdict-plan").onclick = () => makePlan();
+
+    $("holdings").innerHTML = p.holdings.length
+      ? [...p.holdings].sort((a, b) => b.usd - a.usd).map((h) =>
+          `<tr><td>${assetCell(h.symbol)}</td><td>${esc(VENUE[h.venue] || h.venue)}</td><td><span class="tag ${h.bucket}">${h.bucket}</span></td><td class="num">${amt(h.amount)}</td><td class="num">${usd(h.usd)}</td></tr>`).join("")
+      : `<tr><td colspan="5">No holdings found. Add wallet addresses or Alpaca keys to your config.</td></tr>`;
+    $("warnings").innerHTML = (p.warnings || []).map((w) => `<p class="warn">⚠ ${esc(w)}</p>`).join("");
+  }
+
+  // ---------- targets ----------
+  function sumTargets() {
+    const s = ["t-equities", "t-crypto", "t-cash"].reduce((a, id) => a + (parseFloat($(id).value) || 0), 0);
+    const el = $("t-sum");
+    el.textContent = `${+s.toFixed(2)}%`;
+    el.className = Math.abs(s - 100) < 0.01 ? "good" : "bad";
+    $("t-save").disabled = Math.abs(s - 100) >= 0.01;
+    return s;
+  }
+  for (const id of ["t-equities", "t-crypto", "t-cash"]) $(id).addEventListener("input", sumTargets);
+  async function saveTargets(t) {
+    state.status = await call("POST", "/api/targets", t);
+    renderStatus(state.status);
+    await loadPortfolio();
+  }
+  $("targets-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("t-msg");
+    const t = { equities: +$("t-equities").value, crypto: +$("t-crypto").value, cash: +$("t-cash").value, tolerancePct: +$("t-tol").value };
+    $("t-save").disabled = true; msg.className = "msg"; msg.textContent = "Saving…";
+    try { await saveTargets(t); msg.className = "msg ok"; msg.textContent = "Saved. Drift updated."; clearPlan("Targets changed. Build a new plan."); }
+    catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
+    finally { sumTargets(); }
+  });
+
+  // ---------- plan + execute ----------
+  let timer = 0;
+  function clearPlan(text) {
+    state.plan = null; clearInterval(timer);
+    $("plan").innerHTML = `<p class="plan-empty">${esc(text || "Build a plan to see the trades that bring every bucket back to target.")}</p>`;
+  }
+  function renderPlan(plan, warnings) {
+    const legs = plan.legs;
+    const autoLegs = legs.filter((l) => l.mode === "alpaca" && !l.blocked);
+    $("plan-sub").textContent = `Plan ${plan.id}${plan.demo ? " · demo" : ""} · portfolio ${usd0(plan.totalUsd)}`;
+    $("plan").innerHTML = legs.length
+      ? `<div class="scroll"><table><thead><tr><th scope="col">#</th><th scope="col">Trade</th><th scope="col">Venue</th><th scope="col">Who does it</th><th scope="col" class="num">Amount</th></tr></thead><tbody>${
+          legs.map((l) => `<tr><td>${l.id}</td><td class="detail">${esc(l.detail)}${l.quote ? `<small>Jupiter quote: ${esc(l.quote.route)} · impact ${(Number(l.quote.priceImpactPct) * 100).toFixed(2)}%</small>` : ""}${l.blocked ? `<small class="blocked">Blocked: ${esc(l.blocked)}</small>` : ""}</td><td>${esc(VENUE[l.venue] || l.venue)}</td><td><span class="mode ${l.mode}">${MODE[l.mode]}</span></td><td class="num">${usd(l.usd)}</td></tr>`).join("")
+        }</tbody></table></div>`
+      : `<p class="plan-empty">No trades needed.</p>`;
+    const notes = [...plan.notes, ...(warnings || []).map((w) => `⚠ ${w}`)];
+    if (notes.length) $("plan").insertAdjacentHTML("beforeend", `<div class="notes">${notes.map((n) => `<p>${esc(n)}</p>`).join("")}</div>`);
+    if (autoLegs.length) {
+      $("plan").insertAdjacentHTML("beforeend", `<div class="exec">
+        <p>${autoLegs.length} broker ${autoLegs.length === 1 ? "order goes" : "orders go"} to Alpaca <b>paper</b>${plan.demo ? " (demo: simulated, nothing is sent)" : ""}. Wallet and manual legs stay with you. Type <b class="mono">EXECUTE</b> to confirm.</p>
+        <span class="timer" id="timer"></span>
+        <input id="confirm" autocomplete="off" spellcheck="false" aria-label="Type EXECUTE to confirm" placeholder="EXECUTE">
+        <button class="btn btn-danger" id="exec-btn" disabled>Execute plan</button></div>`);
+      $("confirm").addEventListener("input", () => { $("exec-btn").disabled = $("confirm").value !== "EXECUTE" || Date.now() > state.expiresAt; });
+      $("exec-btn").onclick = () => execute();
+      tick(); clearInterval(timer); timer = setInterval(tick, 1000);
+    }
+  }
+  function tick() {
+    const left = Math.max(0, state.expiresAt - Date.now());
+    const el = $("timer"); if (!el) return clearInterval(timer);
+    el.textContent = left ? `valid ${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}` : "expired, plan again";
+    if (!left) { $("exec-btn").disabled = true; clearInterval(timer); }
+  }
+  async function makePlan() {
+    const btn = $("plan-btn"); btn.disabled = true; btn.textContent = "Planning…";
+    try {
+      const r = await call("POST", "/api/plan", {});
+      state.plan = r.plan; state.expiresAt = r.expiresAt;
+      renderPlan(r.plan, r.warnings);
+      $("plan").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
+      return r;
+    } catch (err) { clearPlan(err.message); throw err; }
+    finally { btn.disabled = false; btn.textContent = "Plan rebalance"; }
+  }
+  $("plan-btn").onclick = () => makePlan().catch(() => {});
+  async function execute() {
+    const btn = $("exec-btn"); btn.disabled = true; btn.textContent = "Executing…";
+    try {
+      const r = await call("POST", "/api/execute", { plan_id: state.plan.id, confirm: $("confirm").value });
+      const lines = [r.demo ? "DEMO: no real orders were sent." : "Alpaca paper orders (simulated money):", ...(r.results.length ? r.results : ["(no broker legs)"]), ...(r.pending.length ? ["", "Still to do yourself:", ...r.pending] : [])];
+      clearInterval(timer);
+      $("plan").querySelector(".exec").outerHTML = `<div class="result">${esc(lines.join("\n"))}</div>`;
+      state.status = await call("GET", "/api/status"); renderStatus(state.status);
+      if (!r.demo) await loadPortfolio();
+    } catch (err) {
+      btn.textContent = "Execute plan"; btn.disabled = false;
+      $("plan").insertAdjacentHTML("beforeend", `<div class="result" style="color:var(--red)">${esc(err.message)}</div>`);
+    }
+  }
+
+  async function loadPortfolio() {
+    $("refresh").disabled = true;
+    try { state.portfolio = await call("GET", "/api/portfolio"); renderPortfolio(state.portfolio); }
+    finally { $("refresh").disabled = false; }
+  }
+  $("refresh").onclick = () => loadPortfolio().catch((e) => (e.offline || e.status === 401 ? offline(e) : null));
+
+  // ---------- terminal ----------
+  const out = $("term-out");
+  const print = (text, cls = "") => { const d = document.createElement("div"); if (cls) d.className = cls; d.textContent = text; out.appendChild(d); out.scrollTop = out.scrollHeight; };
+  const table = (rows, head) => {
+    const all = head ? [head, ...rows] : rows;
+    const w = all[0].map((_, i) => Math.max(...all.map((r) => String(r[i]).length)));
+    const last = w.length - 1;   // the last column is free text: never padded, rule kept short
+    const line = (r) => r.map((c, i) => (i === last ? String(c) : String(c).padEnd(w[i]))).join("   ");
+    const rule = w.map((n, i) => "─".repeat(i === last ? Math.min(n, 12) : n)).join("   ");
+    return [head ? line(head) : null, head ? rule : null, ...rows.map(line)].filter((x) => x !== null).join("\n");
+  };
+  const HELP = `commands
+  portfolio                    every holding, grouped into equities / crypto / cash
+  drift                        current vs target weights
+  targets                      targets, tolerance, limits, today's spend
+  set targets <eq> <cr> <ca> [tol]   change targets (must sum to 100)
+  plan                         build a rebalance plan (nothing runs)
+  execute <plan_id> EXECUTE    place the plan's Alpaca paper orders
+  clear                        clear the screen`;
+  const hist = []; let hIdx = 0;
+  async function run(line) {
+    const [cmd, ...args] = line.trim().split(/\s+/);
+    if (!cmd) return;
+    print(line, "cmd");
+    try {
+      if (cmd === "help") print(HELP, "dim");
+      else if (cmd === "clear") out.textContent = "";
+      else if (cmd === "portfolio") {
+        const p = await call("GET", "/api/portfolio"); state.portfolio = p; renderPortfolio(p);
+        print(`Total ${usd(p.totalUsd)}${p.demo ? "  (DEMO)" : ""}`, "hl");
+        print(table([...p.holdings].sort((a, b) => b.usd - a.usd).map((h) => [VENUE[h.venue] || h.venue, h.symbol, amt(h.amount), usd(h.usd), h.bucket]), ["venue", "asset", "amount", "value", "bucket"]));
+        (p.warnings || []).forEach((w) => print(`⚠ ${w}`, "err"));
+      } else if (cmd === "drift") {
+        const p = await call("GET", "/api/portfolio"); state.portfolio = p; renderPortfolio(p);
+        print(`Portfolio ${usd(p.totalUsd)}${p.demo ? " (DEMO)" : ""} · tolerance ±${p.tolerancePct} pts`, "hl");
+        print(table(p.drift.map((d) => [d.bucket, pct(d.currentPct), `${d.targetPct}%`, `${pts(d.driftPts)} pts`, `${d.diffUsd >= 0 ? "buy" : "sell"} ${usd(Math.abs(d.diffUsd))}`]), ["bucket", "now", "target", "drift", "to target"]));
+        print(p.needsRebalance ? `Rebalance needed: largest drift ${p.maxDrift.toFixed(1)} pts. Run "plan".` : "Within tolerance. No rebalance needed.", p.needsRebalance ? "hl" : "ok");
+      } else if (cmd === "targets") {
+        const s = await call("GET", "/api/status"); state.status = s; renderStatus(s);
+        print(`targets    equities ${s.targets.equities}% · crypto ${s.targets.crypto}% · cash ${s.targets.cash}%\ntolerance  ±${s.tolerancePct} pts\nlimits     ${usd(s.limits.maxOrderUsd)} per order · ${usd(s.limits.maxDailyUsd)} per day · spent today ${usd(s.spentToday)}\nmode       ${s.demo ? "DEMO (sample holdings)" : "live accounts"} · Alpaca paper ${s.alpaca ? "connected" : "not configured"}\nconfig     ${s.configPath || "built-in demo defaults (run init to create one)"}`);
+      } else if (cmd === "set" && args[0] === "targets") {
+        const [eq, cr, ca, tol] = args.slice(1).map(Number);
+        if ([eq, cr, ca].some((n) => Number.isNaN(n))) return print("usage: set targets <equities> <crypto> <cash> [tolerance]", "err");
+        await saveTargets({ equities: eq, crypto: cr, cash: ca, ...(tol !== undefined && !Number.isNaN(tol) ? { tolerancePct: tol } : {}) });
+        clearPlan("Targets changed. Build a new plan.");
+        print(`Saved. equities ${eq}% · crypto ${cr}% · cash ${ca}%${tol ? ` · tolerance ±${tol}` : ""}`, "ok");
+      } else if (cmd === "plan") {
+        const r = await makePlan(); const pl = r.plan;
+        print(`Plan ${pl.id}${pl.demo ? " (DEMO)" : ""} · portfolio ${usd(pl.totalUsd)} · valid 15 min`, "hl");
+        print(pl.legs.length ? table(pl.legs.map((l) => [`#${l.id}`, l.venue, MODE[l.mode], usd(l.usd), l.detail + (l.blocked ? ` [BLOCKED: ${l.blocked}]` : "")]), ["#", "venue", "who", "amount", "trade"]) : "No trades.");
+        pl.notes.forEach((n) => print(n, "dim"));
+        if (pl.legs.some((l) => l.mode === "alpaca" && !l.blocked)) print(`To place the Alpaca paper legs: execute ${pl.id} EXECUTE`, "hl");
+      } else if (cmd === "execute") {
+        const [id, word] = args;
+        if (!id) return print("usage: execute <plan_id> EXECUTE", "err");
+        if (word !== "EXECUTE") return print('Not executed. Add the exact word EXECUTE to confirm, e.g. "execute ' + id + ' EXECUTE".', "err");
+        const r = await call("POST", "/api/execute", { plan_id: id, confirm: word });
+        print(r.demo ? "DEMO: no real orders were sent." : "Alpaca paper orders (simulated money):", "ok");
+        print((r.results.length ? r.results : ["(no broker legs)"]).join("\n"));
+        if (r.pending.length) print("Still to do yourself:\n" + r.pending.join("\n"), "dim");
+        state.status = await call("GET", "/api/status"); renderStatus(state.status);
+      } else print(`unknown command "${cmd}". Type help.`, "err");
+    } catch (err) { print(err.message, "err"); if (err.offline || err.status === 401) offline(err); }
+  }
+  $("term-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("term-input").value; $("term-input").value = "";
+    if (v.trim()) { hist.push(v); hIdx = hist.length; }
+    run(v);
+  });
+  $("term-input").addEventListener("keydown", (e) => {
+    if (e.key === "ArrowUp" && hIdx > 0) { e.preventDefault(); $("term-input").value = hist[--hIdx]; }
+    if (e.key === "ArrowDown") { e.preventDefault(); hIdx = Math.min(hist.length, hIdx + 1); $("term-input").value = hist[hIdx] || ""; }
+  });
+  document.querySelectorAll(".quick button").forEach((b) => (b.onclick = () => { run(b.dataset.cmd); $("term-input").focus(); }));
+
+  // ---------- settings ----------
+  const lines = (id) => $(id).value.split(/[\n,]+/).map((x) => x.trim()).filter(Boolean);
+  function renderSettings(st) {
+    state.settings = st;
+    if (document.activeElement !== $("w-sol")) $("w-sol").value = st.solanaWallets.join("\n");
+    if (document.activeElement !== $("w-evm")) $("w-evm").value = st.evmWallets.join("\n");
+    $("evm-chains").textContent = `Read on ${st.evmChains.map((c) => VENUE[c] || c).join(", ")} with the same address`;
+    $("alp-chip").className = `chip ${st.alpaca.configured ? "ok" : ""}`;
+    $("alp-chip").innerHTML = `<i></i>${st.alpaca.configured ? `Connected ${esc(st.alpaca.keyHint || "")}` : "Not set"}`;
+    $("a-clear").hidden = !st.alpaca.configured;
+    $("env-path").textContent = st.envPath;
+    $("cfg-path").textContent = `Saved to ${st.configPath}${st.configExists ? "" : " (created on first save)"}`;
+    $("m-demo").setAttribute("aria-checked", String(st.demo));
+    $("m-live").setAttribute("aria-checked", String(!st.demo));
+    const hasWallet = st.solanaWallets.length + st.evmWallets.length > 0;
+    $("checklist").innerHTML = [
+      [hasWallet, `${st.solanaWallets.length} Solana and ${st.evmWallets.length} EVM wallet${st.evmWallets.length === 1 ? "" : "s"} added`],
+      [st.alpaca.configured, "Alpaca paper keys tested and saved (optional)"],
+      [!st.demo, "Live mode on"],
+    ].map(([ok, t]) => `<li class="${ok ? "done" : ""}">${esc(t)}</li>`).join("");
+    if (st.forcedDemo) { $("m-msg").className = "msg err"; $("m-msg").textContent = "REBALANCER_DEMO=1 is set where the engine runs, so it stays in demo mode."; }
+  }
+  async function loadSettings() { renderSettings(await call("GET", "/api/settings")); }
+  async function afterSettingsChange() {
+    state.status = await call("GET", "/api/status"); renderStatus(state.status);
+    clearPlan("Settings changed. Build a new plan.");
+    await loadPortfolio();
+  }
+  $("wallets-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("w-msg"); msg.className = "msg"; msg.textContent = "Saving…";
+    try {
+      renderSettings(await call("POST", "/api/settings", { solanaWallets: lines("w-sol"), evmWallets: lines("w-evm") }));
+      msg.className = "msg ok"; msg.textContent = "Saved.";
+      await afterSettingsChange();
+    } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
+  });
+  $("alpaca-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = $("a-msg"); msg.className = "msg"; msg.textContent = "Testing against Alpaca paper…"; $("a-save").disabled = true;
+    try {
+      const r = await call("POST", "/api/alpaca", { keyId: $("a-id").value, secret: $("a-secret").value });
+      $("a-secret").value = ""; $("a-id").value = "";
+      renderSettings(r);
+      msg.className = "msg ok"; msg.textContent = `Connected. Paper account ${r.account.status.toLowerCase()}, equity ${usd(r.account.equity)}.`;
+      await afterSettingsChange();
+    } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
+    finally { $("a-save").disabled = false; }
+  });
+  $("a-clear").onclick = async () => {
+    const msg = $("a-msg");
+    try { renderSettings(await call("POST", "/api/alpaca", { clear: true })); msg.className = "msg ok"; msg.textContent = "Keys removed."; await afterSettingsChange(); }
+    catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
+  };
+  async function setMode(demo) {
+    const msg = $("m-msg"); msg.className = "msg"; msg.textContent = demo ? "Switching to demo…" : "Switching to live…";
+    try {
+      renderSettings(await call("POST", "/api/settings", { demo }));
+      msg.className = "msg ok"; msg.textContent = demo ? "Demo mode: sample portfolio." : "Live mode: reading your accounts.";
+      await afterSettingsChange();
+    } catch (err) { msg.className = "msg err"; msg.textContent = err.message; }
+  }
+  $("m-demo").onclick = () => setMode(true);
+  $("m-live").onclick = () => setMode(false);
+
+  // ---------- boot ----------
+  async function boot() {
+    $("summary").innerHTML = Array(4).fill(`<div class="card stat"><p class="label skeleton">Loading</p><p class="value skeleton">$00,000</p></div>`).join("");
+    try {
+      state.status = await call("GET", "/api/status");
+      renderStatus(state.status);
+      show(route());
+      if (!out.childElementCount) print(`omni-rebalancer ${state.status.version} · ${state.status.demo ? "DEMO mode, sample $14,000 portfolio" : "live accounts"}\nType help for commands.`, "dim");
+      await loadPortfolio();
+    } catch (err) { offline(err); }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>

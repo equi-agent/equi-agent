@@ -17,6 +17,19 @@ Then ask Claude: *"How far is my portfolio from target? Plan a rebalance."*
 
 It starts in **demo mode** with a sample $14,000 portfolio, so you can try the whole flow before connecting anything.
 
+## Web app (dashboard + terminal)
+
+```bash
+npx -y omni-rebalancer-mcp web            # http://127.0.0.1:5540  (from source: npm run web)
+```
+
+- **Dashboard**: total value, drift per bucket, holdings, target form, plan and execute (type `EXECUTE`).
+- **Terminal** (`/#terminal`): `portfolio`, `drift`, `targets`, `set targets 50 30 20 [tol]`, `plan`, `execute <id> EXECUTE`.
+- Same functions as the MCP tools, same caps and 15-minute plan expiry.
+- Listens on `127.0.0.1` only. `--host 0.0.0.0` (or `HOST`) refuses to start unless `REBALANCER_WEB_TOKEN`
+  (16+ characters) is set; the app then asks for that token. API calls need the app's own origin and an
+  `X-Rebalancer` header, so other websites in your browser cannot use it. `--port` / `PORT` change the port.
+
 ## Connect your accounts
 
 ```bash
@@ -71,7 +84,7 @@ This is software that follows the target allocation **you** set. It does not pic
 ## Develop
 
 ```bash
-git clone https://github.com/Dhkrmynti/omni-rebalancer-mcp.git && cd omni-rebalancer-mcp
+git clone https://github.com/equi-agent/omni-rebalancer-mcp.git && cd omni-rebalancer-mcp
 npm install
 npm run smoke       # runs every tool once in demo mode
 npm run typecheck

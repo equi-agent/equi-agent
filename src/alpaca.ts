@@ -9,6 +9,14 @@ const BASE = "https://paper-api.alpaca.markets";
 
 export const alpacaConfigured = () => Boolean(process.env.ALPACA_KEY_ID && process.env.ALPACA_SECRET_KEY);
 
+/** Try a key pair against the paper account endpoint without storing it. Throws with Alpaca's message on failure. */
+export async function checkAlpacaKeys(keyId: string, secret: string) {
+  const acct = await getJson<{ status: string; equity: string }>(`${BASE}/v2/account`, {
+    headers: { "APCA-API-KEY-ID": keyId, "APCA-API-SECRET-KEY": secret },
+  });
+  return { status: acct.status, equity: Number(acct.equity) };
+}
+
 function headers() {
   return {
     "APCA-API-KEY-ID": process.env.ALPACA_KEY_ID || "",

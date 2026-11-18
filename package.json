@@ -4,11 +4,11 @@
   "description": "MCP server that rebalances US stocks (Alpaca paper trading) and on-chain crypto (Solana, Ethereum, Base, Arbitrum) toward a target allocation, with human approval.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Dhkrmynti/omni-rebalancer-mcp.git"
+    "url": "git+https://github.com/equi-agent/omni-rebalancer-mcp.git"
   },
-  "homepage": "https://github.com/Dhkrmynti/omni-rebalancer-mcp#readme",
+  "homepage": "https://github.com/equi-agent/omni-rebalancer-mcp#readme",
   "bugs": {
-    "url": "https://github.com/Dhkrmynti/omni-rebalancer-mcp/issues"
+    "url": "https://github.com/equi-agent/omni-rebalancer-mcp/issues"
   },
   "type": "module",
   "bin": {
@@ -17,6 +17,7 @@
   "main": "dist/index.js",
   "files": [
     "dist",
+    "web",
     "config.example.json",
     "README.md",
     "LICENSE"
@@ -29,7 +30,8 @@
     "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --packages=external --outfile=dist/index.js --banner:js=\"#!/usr/bin/env node\"",
     "typecheck": "tsc --noEmit",
     "smoke": "tsx scripts/smoke.ts",
-    "prepublishOnly": "npm run typecheck && npm run build"
+    "prepublishOnly": "npm run typecheck && npm run build",
+    "web": "tsx src/index.ts web"
   },
   "keywords": [
     "mcp",

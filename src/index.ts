@@ -12,6 +12,7 @@
  * Usage:
  *   npx -y omni-rebalancer-mcp          start the MCP server on stdio (what Claude runs)
  *   npx -y omni-rebalancer-mcp init     create ~/.omni-rebalancer/config.json to edit
+ *   npx -y omni-rebalancer-mcp web      open the web app (dashboard + terminal) on http://127.0.0.1:5540
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -20,9 +21,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { configPath, ensureConfigFile, HOME_DIR, loadConfig, loadEnvFile, saveConfig, validateTargets } from "./config.ts";
 import { loadPortfolio } from "./portfolio.ts";
-import { BUCKETS, buildPlan, computeDrift, getPlan, PLAN_TTL_MS, type Plan } from "./rebalance.ts";
-import { alpacaConfigured, placeNotionalOrder } from "./alpaca.ts";
-import { recordSpend, spentToday } from "./guard.ts";
+import { BUCKETS, buildPlan, computeDrift, type Plan } from "./rebalance.ts";
+import { alpacaConfigured } from "./alpaca.ts";
+import { spentToday } from "./guard.ts";
+import { executePlan } from "./execute.ts";
 import { short, usd } from "./holdings.ts";
 
 const VERSION = "0.1.0";
@@ -41,6 +43,7 @@ if (cmd === "--help" || cmd === "-h") {
 
   npx -y omni-rebalancer-mcp          start the MCP server (stdio)
   npx -y omni-rebalancer-mcp init     create ${configPath()}
+  npx -y omni-rebalancer-mcp web      web app on http://127.0.0.1:5540 (--port N, --host H)
 
 Add to Claude Code:
   claude mcp add omni-rebalancer -- npx -y omni-rebalancer-mcp
@@ -48,7 +51,18 @@ Add to Claude Code:
 Alpaca paper keys: set ALPACA_KEY_ID / ALPACA_SECRET_KEY, or put them in ${path.join(HOME_DIR, ".env")}`);
   process.exit(0);
 }
-if (cmd === "init") {
+if (cmd === "web") {
+  const { startWeb } = await import("./web.ts");
+  const arg = (name: string) => {
+    const i = process.argv.indexOf(`--${name}`);
+    return i > 0 ? process.argv[i + 1] : undefined;
+  };
+  await startWeb({
+    port: Number(arg("port") || process.env.PORT || 5540),
+    host: arg("host") || process.env.HOST || "127.0.0.1",
+    version: VERSION,
+  });
+} else if (cmd === "init") {
   const existed = fs.existsSync(configPath());
   const file = ensureConfigFile();
   console.log(`${existed ? "Config already exists" : "Created"}: ${file}
@@ -62,6 +76,7 @@ Next:
   process.exit(0);
 }
 
+if (cmd !== "web") {
 const text = (s: string) => ({ content: [{ type: "text" as const, text: s }] });
 const pct = (n: number) => `${n.toFixed(1)}%`;
 
@@ -214,41 +229,17 @@ server.registerTool(
     },
   },
   async ({ plan_id }) => {
-    const plan = getPlan(plan_id);
-    if (!plan) return { ...text(`Unknown plan "${plan_id}". Run plan_rebalance again.`), isError: true };
-    if (Date.now() - plan.createdAt > PLAN_TTL_MS) return { ...text("This plan expired (prices move). Run plan_rebalance again."), isError: true };
-
-    const cfg = loadConfig();
-    const autoLegs = plan.legs.filter((l) => l.mode === "alpaca" && !l.blocked).sort((a, b) => (a.side === "sell" ? -1 : 1) - (b.side === "sell" ? -1 : 1));
-    const total = autoLegs.reduce((s, l) => s + l.usd, 0);
-    const room = cfg.limits.maxDailyUsd - spentToday();
-    if (total > room) return { ...text(`Daily cap: this plan trades ${usd(total)} but only ${usd(Math.max(room, 0))} is left today (maxDailyUsd ${usd(cfg.limits.maxDailyUsd)}).`), isError: true };
-    if (!plan.demo && autoLegs.length && !alpacaConfigured()) return { ...text("Alpaca keys are not set, so broker legs cannot be placed."), isError: true };
-
-    const results: string[] = [];
-    for (const l of autoLegs) {
-      const symbol = l.side === "sell" ? l.from : l.to;
-      if (plan.demo) {
-        results.push(`#${l.id} SIMULATED ${l.side} ${usd(l.usd)} ${symbol}`);
-        continue;
-      }
-      try {
-        const o = await placeNotionalOrder(symbol, l.side as "buy" | "sell", l.usd, `rebal-${plan.id}-${l.id}`);
-        recordSpend(l.usd);
-        results.push(`#${l.id} ${o.side} ${usd(Number(o.notional))} ${o.symbol} → order ${o.id.slice(0, 8)} (${o.status})`);
-      } catch (e) {
-        results.push(`#${l.id} FAILED ${l.side} ${symbol}: ${(e as Error).message}`);
-      }
-    }
-    const pending = plan.legs.filter((l) => l.mode !== "alpaca" || l.blocked);
+    const r = await executePlan(plan_id);
+    if (!r.ok) return { ...text(r.error ?? "Execution failed."), isError: true };
     return text(
       [
-        plan.demo ? "DEMO: no real orders were sent." : "Alpaca paper orders (simulated money):",
-        ...(results.length ? results : ["(no broker legs)"]),
-        ...(pending.length ? ["", "Still to do yourself:", ...pending.map((l) => `#${l.id} ${l.detail}${l.blocked ? ` (blocked: ${l.blocked})` : ""}`)] : []),
+        r.demo ? "DEMO: no real orders were sent." : "Alpaca paper orders (simulated money):",
+        ...(r.results.length ? r.results : ["(no broker legs)"]),
+        ...(r.pending.length ? ["", "Still to do yourself:", ...r.pending] : []),
       ].join("\n"),
     );
   },
 );
 
 await server.connect(new StdioServerTransport());
+}
