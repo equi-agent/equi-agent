@@ -1,4 +1,4 @@
-# omni-rebalancer-mcp
+# equi-agent
 
 An [MCP](https://modelcontextprotocol.io) server that lets an AI agent (Claude Code, Claude Desktop, ...) see **US stocks and on-chain crypto as one portfolio**, measure how far it drifted from your target allocation, and plan the trades to get back on target. Broker orders run only after you approve.
 
@@ -10,7 +10,7 @@ An [MCP](https://modelcontextprotocol.io) server that lets an AI agent (Claude C
 ## Quick start
 
 ```bash
-claude mcp add omni-rebalancer -- npx -y omni-rebalancer-mcp
+claude mcp add equi -- npx -y equi-agent
 ```
 
 Then ask Claude: *"How far is my portfolio from target? Plan a rebalance."*
@@ -20,23 +20,23 @@ It starts in **demo mode** with a sample $14,000 portfolio, so you can try the w
 ## Web app (dashboard + terminal)
 
 ```bash
-npx -y omni-rebalancer-mcp web            # http://127.0.0.1:5540  (from source: npm run web)
+npx -y equi-agent web            # http://127.0.0.1:5540  (from source: npm run web)
 ```
 
 - **Dashboard**: total value, drift per bucket, holdings, target form, plan and execute (type `EXECUTE`).
 - **Terminal** (`/#terminal`): `portfolio`, `drift`, `targets`, `set targets 50 30 20 [tol]`, `plan`, `execute <id> EXECUTE`.
 - Same functions as the MCP tools, same caps and 15-minute plan expiry.
-- Listens on `127.0.0.1` only. `--host 0.0.0.0` (or `HOST`) refuses to start unless `REBALANCER_WEB_TOKEN`
+- Listens on `127.0.0.1` only. `--host 0.0.0.0` (or `HOST`) refuses to start unless `EQUI_WEB_TOKEN`
   (16+ characters) is set; the app then asks for that token. API calls need the app's own origin and an
-  `X-Rebalancer` header, so other websites in your browser cannot use it. `--port` / `PORT` change the port.
+  `X-Equi` header, so other websites in your browser cannot use it. `--port` / `PORT` change the port.
 
 ## Connect your accounts
 
 ```bash
-npx -y omni-rebalancer-mcp init
+npx -y equi-agent init
 ```
 
-This creates `~/.omni-rebalancer/config.json`. Edit it:
+This creates `~/.equi/config.json`. Edit it:
 
 - `targets`: percent per bucket (`equities`, `crypto`, `cash`), must sum to 100
 - `tolerancePct`: rebalance only past this many points of drift
@@ -44,7 +44,7 @@ This creates `~/.omni-rebalancer/config.json`. Edit it:
 - `limits`: `maxOrderUsd` (bigger orders are split), `maxDailyUsd` (hard stop per UTC day)
 - `"demo": false` to read real accounts
 
-Alpaca paper keys (optional) go in `~/.omni-rebalancer/.env`:
+Alpaca paper keys (optional) go in `~/.equi/.env`:
 
 ```bash
 ALPACA_KEY_ID="..."
@@ -76,15 +76,15 @@ This is software that follows the target allocation **you** set. It does not pic
 
 | What | Default | Override |
 |---|---|---|
-| Settings | `~/.omni-rebalancer/config.json` | `REBALANCER_CONFIG` |
-| Keys | `~/.omni-rebalancer/.env` or `./.env` | real environment variables |
-| Daily spend ledger | `~/.omni-rebalancer/state/` | `REBALANCER_HOME` |
-| Force demo mode | | `REBALANCER_DEMO=1` |
+| Settings | `~/.equi/config.json` | `EQUI_CONFIG` |
+| Keys | `~/.equi/.env` or `./.env` | real environment variables |
+| Daily spend ledger | `~/.equi/state/` | `EQUI_HOME` |
+| Force demo mode | | `EQUI_DEMO=1` |
 
 ## Develop
 
 ```bash
-git clone https://github.com/equi-agent/omni-rebalancer-mcp.git && cd omni-rebalancer-mcp
+git clone https://github.com/equi-agent/equi-agent.git && cd equi-agent
 npm install
 npm run smoke       # runs every tool once in demo mode
 npm run typecheck

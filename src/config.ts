@@ -5,9 +5,23 @@ import { fileURLToPath } from "node:url";
 
 /** Package root (holds config.example.json). Works from src/ (dev) and dist/ (published). */
 export const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// Equi was called omni-rebalancer-mcp before: keep the old REBALANCER_* variables working.
+for (const k of ["HOME", "CONFIG", "DEMO", "WEB_TOKEN"])
+  if (!process.env[`EQUI_${k}`] && process.env[`REBALANCER_${k}`]) process.env[`EQUI_${k}`] = process.env[`REBALANCER_${k}`];
+
 /** Where your settings live. Outside the package, so npx/npm updates never touch them. */
-export const HOME_DIR = process.env.REBALANCER_HOME || path.join(os.homedir(), ".omni-rebalancer");
-const CONFIG_PATH = process.env.REBALANCER_CONFIG || path.join(HOME_DIR, "config.json");
+export const HOME_DIR = process.env.EQUI_HOME || path.join(os.homedir(), ".equi");
+
+// One-time move of the old settings folder (~/.omni-rebalancer) to ~/.equi, so config, keys and the spend ledger carry over.
+if (!process.env.EQUI_HOME) {
+  const legacy = path.join(os.homedir(), ".omni-rebalancer");
+  try {
+    if (!fs.existsSync(HOME_DIR) && fs.existsSync(legacy)) fs.renameSync(legacy, HOME_DIR);
+  } catch {
+    /* leave it; the user can move it by hand */
+  }
+}
+const CONFIG_PATH = process.env.EQUI_CONFIG || path.join(HOME_DIR, "config.json");
 const EXAMPLE_PATH = path.join(PKG_ROOT, "config.example.json");
 export const STATE_DIR = path.join(HOME_DIR, "state");
 
@@ -37,7 +51,7 @@ export const configPath = () => CONFIG_PATH;
 export function loadConfig(): Config {
   const file = fs.existsSync(CONFIG_PATH) ? CONFIG_PATH : EXAMPLE_PATH;
   const cfg = JSON.parse(fs.readFileSync(file, "utf8")) as Config;
-  if (process.env.REBALANCER_DEMO === "1") cfg.demo = true;
+  if (process.env.EQUI_DEMO === "1") cfg.demo = true;
   return cfg;
 }
 
@@ -46,7 +60,7 @@ export function saveConfig(cfg: Config) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + "\n");
 }
 
-/** Creates ~/.omni-rebalancer/config.json from the example if it is missing. Returns its path. */
+/** Creates ~/.equi/config.json from the example if it is missing. Returns its path. */
 export function ensureConfigFile(): string {
   if (!fs.existsSync(CONFIG_PATH)) {
     fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });

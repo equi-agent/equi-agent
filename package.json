@@ -1,18 +1,19 @@
 {
-  "name": "omni-rebalancer-mcp",
+  "name": "equi-agent",
   "version": "0.1.0",
-  "description": "MCP server that rebalances US stocks (Alpaca paper trading) and on-chain crypto (Solana, Ethereum, Base, Arbitrum) toward a target allocation, with human approval.",
+  "description": "Equi: an AI agent (MCP server + web app) that rebalances US stocks (Alpaca paper trading) and on-chain crypto (Solana, Ethereum, Base, Arbitrum) toward your target allocation, with human approval.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/equi-agent/omni-rebalancer-mcp.git"
+    "url": "git+https://github.com/equi-agent/equi-agent.git"
   },
-  "homepage": "https://github.com/equi-agent/omni-rebalancer-mcp#readme",
+  "homepage": "https://github.com/equi-agent/equi-agent#readme",
   "bugs": {
-    "url": "https://github.com/equi-agent/omni-rebalancer-mcp/issues"
+    "url": "https://github.com/equi-agent/equi-agent/issues"
   },
   "type": "module",
   "bin": {
-    "omni-rebalancer-mcp": "dist/index.js"
+    "equi-agent": "dist/index.js",
+    "equi": "dist/index.js"
   },
   "main": "dist/index.js",
   "files": [

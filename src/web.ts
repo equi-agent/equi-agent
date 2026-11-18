@@ -1,10 +1,10 @@
 /**
- * Web app for omni-rebalancer: a small JSON API over the same functions the MCP tools use, plus the static
- * dashboard / terminal in web/. Started with `omni-rebalancer-mcp web`.
+ * Web app for equi: a small JSON API over the same functions the MCP tools use, plus the static
+ * dashboard / terminal in web/. Started with `equi-agent web`.
  *
  * Safety:
- *  - binds to 127.0.0.1 by default. Any other host needs REBALANCER_WEB_TOKEN (sent as a Bearer token).
- *  - API calls must come from the app's own origin and carry the X-Rebalancer header, so another website
+ *  - binds to 127.0.0.1 by default. Any other host needs EQUI_WEB_TOKEN (sent as a Bearer token).
+ *  - API calls must come from the app's own origin and carry the X-Equi header, so another website
  *    open in your browser cannot drive the API (no CORS headers are ever sent).
  *  - on loopback the Host header must be localhost / 127.0.0.1 (blocks DNS rebinding).
  *  - execute still needs the exact word "EXECUTE" and goes through the same caps as the MCP tool.
@@ -51,7 +51,7 @@ function walletList(value: unknown, kind: "solana" | "evm"): string[] {
   return out;
 }
 
-/** Write or clear the Alpaca lines of ~/.omni-rebalancer/.env (owner-only), keeping any other lines. */
+/** Write or clear the Alpaca lines of ~/.equi/.env (owner-only), keeping any other lines. */
 function writeAlpacaEnv(keyId: string | null, secret: string | null) {
   let lines: string[] = [];
   try { lines = fs.readFileSync(ENV_FILE, "utf8").split("\n").filter((l) => l && !/^\s*ALPACA_(KEY_ID|SECRET_KEY)\s*=/.test(l)); } catch { /* new file */ }
@@ -68,7 +68,7 @@ function settings() {
   const id = process.env.ALPACA_KEY_ID || "";
   return {
     demo: c.demo,
-    forcedDemo: process.env.REBALANCER_DEMO === "1",
+    forcedDemo: process.env.EQUI_DEMO === "1",
     solanaWallets: c.solana.wallets,
     evmWallets: c.evm.wallets,
     evmChains: Object.keys(c.evm.chains),
@@ -226,10 +226,10 @@ function serveStatic(route: string, res: http.ServerResponse) {
 }
 
 export async function startWeb({ port, host, version }: { port: number; host: string; version: string }) {
-  const token = process.env.REBALANCER_WEB_TOKEN || "";
+  const token = process.env.EQUI_WEB_TOKEN || "";
   const loopback = LOOPBACK.has(host);
   if (!loopback && token.length < 16) {
-    console.error(`Refusing to listen on ${host} without REBALANCER_WEB_TOKEN (16+ characters). Anyone on the network could reach the API.`);
+    console.error(`Refusing to listen on ${host} without EQUI_WEB_TOKEN (16+ characters). Anyone on the network could reach the API.`);
     process.exit(1);
   }
   const safeEq = (a: string, b: string) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -246,7 +246,7 @@ export async function startWeb({ port, host, version }: { port: number; host: st
         if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "Method not allowed.");
         return serveStatic(route, res);
       }
-      if (req.headers["x-rebalancer"] !== "1") throw new HttpError(403, "Missing X-Rebalancer header.");
+      if (req.headers["x-equi"] !== "1") throw new HttpError(403, "Missing X-Equi header.");
       const origin = req.headers.origin;
       if (origin && origin !== `http://${req.headers.host}` && origin !== `https://${req.headers.host}`) throw new HttpError(403, "Cross-origin request blocked.");
       if (token) {
@@ -263,7 +263,7 @@ export async function startWeb({ port, host, version }: { port: number; host: st
 
   await new Promise<void>((resolve) => server.listen(port, host, resolve));
   const shown = host.includes(":") ? `[${host}]` : host;
-  console.log(`omni-rebalancer web ${version}
+  console.log(`equi web ${version}
 
   App:       http://${shown}:${port}/
   Terminal:  http://${shown}:${port}/#terminal

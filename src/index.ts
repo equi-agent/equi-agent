@@ -1,5 +1,5 @@
 /**
- * omni-rebalancer-mcp: one MCP server that sees US stocks (Alpaca, paper trading) and on-chain crypto
+ * equi-agent: one MCP server that sees US stocks (Alpaca, paper trading) and on-chain crypto
  * (Solana + EVM wallets) as a single portfolio, measures drift from your target allocation, plans the
  * trades to get back on target, and executes only after you confirm.
  *
@@ -10,9 +10,9 @@
  *  - per-order and per-day dollar caps from config.json
  *
  * Usage:
- *   npx -y omni-rebalancer-mcp          start the MCP server on stdio (what Claude runs)
- *   npx -y omni-rebalancer-mcp init     create ~/.omni-rebalancer/config.json to edit
- *   npx -y omni-rebalancer-mcp web      open the web app (dashboard + terminal) on http://127.0.0.1:5540
+ *   npx -y equi-agent          start the MCP server on stdio (what Claude runs)
+ *   npx -y equi-agent init     create ~/.equi/config.json to edit
+ *   npx -y equi-agent web      open the web app (dashboard + terminal) on http://127.0.0.1:5540
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -29,7 +29,7 @@ import { short, usd } from "./holdings.ts";
 
 const VERSION = "0.1.0";
 
-// Keys can come from the environment, ~/.omni-rebalancer/.env, or a .env in the current folder.
+// Keys can come from the environment, ~/.equi/.env, or a .env in the current folder.
 loadEnvFile(path.join(HOME_DIR, ".env"));
 loadEnvFile(path.join(process.cwd(), ".env"));
 
@@ -39,14 +39,14 @@ if (cmd === "--version" || cmd === "-v") {
   process.exit(0);
 }
 if (cmd === "--help" || cmd === "-h") {
-  console.log(`omni-rebalancer-mcp ${VERSION}
+  console.log(`equi-agent ${VERSION}
 
-  npx -y omni-rebalancer-mcp          start the MCP server (stdio)
-  npx -y omni-rebalancer-mcp init     create ${configPath()}
-  npx -y omni-rebalancer-mcp web      web app on http://127.0.0.1:5540 (--port N, --host H)
+  npx -y equi-agent          start the MCP server (stdio)
+  npx -y equi-agent init     create ${configPath()}
+  npx -y equi-agent web      web app on http://127.0.0.1:5540 (--port N, --host H)
 
 Add to Claude Code:
-  claude mcp add omni-rebalancer -- npx -y omni-rebalancer-mcp
+  claude mcp add equi -- npx -y equi-agent
 
 Alpaca paper keys: set ALPACA_KEY_ID / ALPACA_SECRET_KEY, or put them in ${path.join(HOME_DIR, ".env")}`);
   process.exit(0);
@@ -72,7 +72,7 @@ Next:
   2. Optional: put Alpaca PAPER keys in ${path.join(HOME_DIR, ".env")}
        ALPACA_KEY_ID="..."
        ALPACA_SECRET_KEY="..."
-  3. claude mcp add omni-rebalancer -- npx -y omni-rebalancer-mcp`);
+  3. claude mcp add equi -- npx -y equi-agent`);
   process.exit(0);
 }
 
@@ -80,7 +80,7 @@ if (cmd !== "web") {
 const text = (s: string) => ({ content: [{ type: "text" as const, text: s }] });
 const pct = (n: number) => `${n.toFixed(1)}%`;
 
-const server = new McpServer({ name: "omni-rebalancer", version: VERSION });
+const server = new McpServer({ name: "equi", version: VERSION });
 
 server.registerTool(
   "get_portfolio",
@@ -123,7 +123,7 @@ server.registerTool(
         `Tolerance: ±${c.tolerancePct} pts`,
         `Limits: max ${usd(c.limits.maxOrderUsd)} per order, ${usd(c.limits.maxDailyUsd)} per day (spent today: ${usd(spentToday())})`,
         `Mode: ${c.demo ? "DEMO (sample holdings)" : "live accounts"} · broker: Alpaca paper ${alpacaConfigured() ? "(connected)" : "(not configured)"}`,
-        fs.existsSync(configPath()) ? `Config: ${configPath()}` : `Config: built-in demo defaults (run \`npx -y omni-rebalancer-mcp init\` to create ${configPath()})`,
+        fs.existsSync(configPath()) ? `Config: ${configPath()}` : `Config: built-in demo defaults (run \`npx -y equi-agent init\` to create ${configPath()})`,
       ].join("\n"),
     );
   },
