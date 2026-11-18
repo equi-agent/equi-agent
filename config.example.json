@@ -1,0 +1,42 @@
+{
+  "targets": { "equities": 50, "crypto": 30, "cash": 20 },
+  "tolerancePct": 5,
+  "equityDefaultBuy": "SPY",
+  "stablecoins": ["USDC", "USDT", "PYUSD", "DAI", "USDS", "USDG"],
+  "solana": {
+    "rpc": "https://api.mainnet-beta.solana.com",
+    "wallets": []
+  },
+  "evm": {
+    "wallets": [],
+    "chains": {
+      "ethereum": {
+        "rpc": "https://ethereum-rpc.publicnode.com",
+        "nativeSymbol": "ETH",
+        "nativePriceId": "coingecko:ethereum",
+        "tokens": [
+          { "symbol": "USDC", "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "decimals": 6, "stable": true },
+          { "symbol": "USDT", "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "decimals": 6, "stable": true }
+        ]
+      },
+      "base": {
+        "rpc": "https://mainnet.base.org",
+        "nativeSymbol": "ETH",
+        "nativePriceId": "coingecko:ethereum",
+        "tokens": [
+          { "symbol": "USDC", "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "decimals": 6, "stable": true }
+        ]
+      },
+      "arbitrum": {
+        "rpc": "https://arb1.arbitrum.io/rpc",
+        "nativeSymbol": "ETH",
+        "nativePriceId": "coingecko:ethereum",
+        "tokens": [
+          { "symbol": "USDC", "address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "decimals": 6, "stable": true }
+        ]
+      }
+    }
+  },
+  "limits": { "maxOrderUsd": 1000, "maxDailyUsd": 3000, "minLegUsd": 10 },
+  "demo": true
+}

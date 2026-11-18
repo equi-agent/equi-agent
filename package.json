@@ -1,0 +1,61 @@
+{
+  "name": "omni-rebalancer-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that rebalances US stocks (Alpaca paper trading) and on-chain crypto (Solana, Ethereum, Base, Arbitrum) toward a target allocation, with human approval.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dhkrmynti/omni-rebalancer-mcp.git"
+  },
+  "homepage": "https://github.com/Dhkrmynti/omni-rebalancer-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Dhkrmynti/omni-rebalancer-mcp/issues"
+  },
+  "type": "module",
+  "bin": {
+    "omni-rebalancer-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "config.example.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.18"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --packages=external --outfile=dist/index.js --banner:js=\"#!/usr/bin/env node\"",
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx scripts/smoke.ts",
+    "prepublishOnly": "npm run typecheck && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-agent",
+    "portfolio",
+    "rebalancing",
+    "stocks",
+    "crypto",
+    "alpaca",
+    "solana",
+    "ethereum",
+    "base",
+    "arbitrum",
+    "jupiter"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
